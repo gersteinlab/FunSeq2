@@ -1,0 +1,6 @@
+Revision history for Perl extension Funseq2.
+
+0.01  Tue Dec 17 22:30:01 2013
+	- original version; created by h2xs 1.23 with options
+		-AX -n Funseq2 -b 5.0.0
+
