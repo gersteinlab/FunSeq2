@@ -1,7 +1,0 @@
-Changes
-Makefile.PL
-MANIFEST
-README
-t/Funseq2.t
-lib/Funseq_SNV.pm
-lib/Funseq_Indel.pm
