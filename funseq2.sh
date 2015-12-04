@@ -18,13 +18,19 @@ score_cut=1.5
 user_anno=data_context/user_annotations
 recurdb_use=0
 sv_length_cut=20
+#conf_in="config.txt"
 
 function usage 
 {
 	echo " 
-	
-	* Usage : ./run.sh -f file -maf MAF -m <1/2> -len length_cut -inf <bed/vcf> -outf <bed/vcf> -nc -o path -g file -exp file -cls file -exf <rpkm/raw> -p int -cancer cancer_type -s score -uw -ua user_annotations_directory -db
-	
+	FunSeq version 2.1.4
+	* Usage : $0 -f file -maf MAF -m <1/2> -len length_cut -inf <bed/vcf> -outf <bed/vcf> -nc -o path -g file -exp file -cls file -exf <rpkm/raw> -p int -cancer cancer_type -s score -uw -ua user_annotations_directory -db
+
+     The default config file is config.txt. You can also assign a new config file using command:
+     export FunSeqConfig=xxx
+and then run: $0 [Options].
+
+
 	Options : 
 		-f		[Required] User Input SNVs File
 		-inf	 	[Required] Input format - BED or VCF
@@ -75,6 +81,10 @@ while [ "$1" != "" ]; do
 	-maf)			shift
 				maf=$1
 				;;
+    -conf)
+        shift
+        conf_in=$1
+        ;;
 	-len)			shift
 				sv_length_cut=$1
 				;;
@@ -142,6 +152,8 @@ for cmd in ${NEEDED_COMMANDS} ; do
         exit -1
     fi
 done
+
+#export FunSeqConfig=$conf_in
 
 ## run programs...
 if [[ $user_input != "" &&  $maf != ""  &&  $genome_mode != ""  &&  $input_format != ""  &&  $output_format  != "" && $out_path != "" ]]

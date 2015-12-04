@@ -5,7 +5,6 @@ use IO::Handle;
 use Parallel::ForkManager;
 use code::Funseq_SNV;
 use code::Funseq_Indel;
-
 ##   Obtain basic input parameters ... 
 $| = 1; 
 my $infile = $ARGV[0];        # input variants file 
@@ -26,9 +25,11 @@ my $gene_list = "";	          # gene list file
 my $expression = "";	      # expression file
 my $class = "";		          # sample class file
 my $exp_format = "";		  # expression format : rpkm / raw read count
-my $motif_p_value_cut = 4e-8;
+my $motif_p_value_cut = 4e-8; ###SKL2YF: arbitrary definition?
 
 
+
+###TODO: add $choice and config file parameter and  to delete or keep intermediate parameter
 ##   Get additional parameters ...
 if (scalar @ARGV == 15){
 	$gene_list = $ARGV[14];
@@ -68,8 +69,17 @@ if ($exp_format ne ""){
 ##   Required files
 my %variable;
 my $file_path;
+###import proper config file for different env
+### $ENV{'FunSeqConfig'},
+my $config_file="config.txt";
+if ($ENV{'FunSeqConfig'} ne ''){
+    $config_file=$ENV{'FunSeqConfig'};
+}
 
-open(PA,"config.txt")||die;
+print "FunSeq is starting!\n############################\nConfig file:".$config_file."\n";
+
+
+open(PA,$config_file)||die;
 while(<PA>){
 	if (/^file_path=(.+)$/){
 		$file_path=$1;
@@ -449,7 +459,7 @@ sub main{
     	}else{
         	    `cp $out_snv_filter $out_nc`;
     	}
-    	if (-s $out_nc){
+    	if (-s $out_nc){ #non-zero
         	    $data -> read_encode($out_nc,$encode_annotation);   # ENCODE annotations for non-coding variants
     	}
 	
@@ -465,7 +475,7 @@ sub main{
 			$data -> hot_region($out_nc,$hot_file);                           # non-coding variants in highly occupied regions or not 
 			$data -> motif_break($out_nc, $ancestral_file, $bound_motif, $genome_mode, $motif_pfm);      # Motif disruption analysis
 			$data -> gene_link($out_nc,$promoter,$enhancer,$intron,$utr,$network_dir);         # Associate non-coding variants to genes & network analysis 
-			# Motif gain 
+			# Motif gain,SKL: how to define motif_p_value_cut?
 			$data -> motif_gain($motif_pfm,$reference_file,$score_file,$motif_p_value_cut,$out_motif);         # Gain-of-motif analysis. This step should be done after gene_link
 		}
 	
@@ -509,7 +519,7 @@ sub main{
     
 
 	# delete all intermedia results 
-	my $choice = 1;   # 1 will delete all intermedia results; 0 is used to test scripts. 
+	my $choice = 0;   # 1 will delete all intermedia results; 0 is used to test scripts. 
 	if ($choice == 1){
 		`rm $output_path/$tag.out*`;
 	}

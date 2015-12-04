@@ -175,9 +175,10 @@ sub snv_filter{
 		   		my @tmp = split /\t/,$_;
 		   		# only SNVs
 		   		if (length($tmp[3])==1 && length($tmp[4])==1 && $tmp[3] =~ /[ATCG]/i && $tmp[4] =~ /[ATCG]/i){
-		   			my $id = join("\t",$tmp[0],$tmp[1]-1);
+		   			my $id = join("\t",$tmp[0],$tmp[1]-1);  
 		   			if(defined $saw{$id}){
 		   			}else{
+                        $id =  join("\t",$tmp[0],$tmp[1]-1,$tmp[3],$tmp[4]);###SKL
 		   				$self->{VCF} ->{$id} = join("\t",@tmp[0..6]);
 		   				$self->{DES} ->{$id} = join("\t",$tmp[0],$tmp[1]-1,@tmp[1,3,4]);
 		   				print OUT $self -> {DES} -> {$id},"\n";
@@ -197,6 +198,7 @@ sub snv_filter{
 		   		my $id = join("\t",@tmp[0,1]);
 		   		if(defined $saw{$id}){
 		   		}else{
+                    $id = join("\t",@tmp[0,1,3,4]); ###SKL: changed here
 		   			$self->{DES} -> {$id} = join("\t",@tmp[0..4]);
 		   			print OUT $self -> {DES} -> {$id},"\n";
 		   		}
@@ -222,7 +224,7 @@ sub gerp_score{
 	my $id;
 	
 	foreach $id (sort keys %{$self->{DES}}){
-		$self->{GERP}->{$id} = ".";
+		$self->{GERP}->{$id} = ".";###here id is chr pos ref alt
 	}
 	if (-s $gerp_file && -f $gerp_file){		
 		my $out = `awk '{FS="\t";OFS="\t"}{print \$1,\$2,\$2+1,\$1":"\$2}' $infile |sort -k 1,1 -k 2,2n |uniq| bigWigAverageOverBed $gerp_file stdin stdout`;
@@ -242,7 +244,8 @@ sub conserved {
 	my ($input,$file) = @_;
 	open(IN, "intersectBed -u -a $input -b $file |");
 	while(<IN>){
-		my $id =join("\t",(split /\s+/,$_)[0,1]);
+		#my $id =join("\t",(split /\s+/,$_)[0,1]); ###SKL: change here
+        my $id =join("\t",(split /\s+/,$_)[0,1,3,4]);
 		$self -> {CONS} ->{$id} =1;
 	}
 	close IN;
@@ -255,7 +258,8 @@ sub hot_region{
 	open(IN, "intersectBed -a $input -b $file -wo | ");
 	while(<IN>){
 		my @tmp = split /\s+/,$_;
-		my $id = join("\t",@tmp[0,1]);
+		#my $id = join("\t",@tmp[0,1]);
+        my $id = join("\t",@tmp[0,1,3,4]);
 		$self -> {HOT} -> {$id} -> {$tmp[8]} =1;
 	}
 	close IN;
@@ -309,7 +313,7 @@ EOF
 	my $AA_freq;
 	my $interval;
 	my $diff_freq;
-	
+	my $id_short;
 # Read in PFM file 
 	open MOTIF, $pfm or die;
 	while(<MOTIF>){
@@ -318,7 +322,8 @@ EOF
 			$prev_name = (split/>|\s+/,$_)[1];
 		}else{
 			@info = split/\s+/,$_;
-			if(not exists $motif{$prev_name}){
+			if(not exists $motif{$prev_name}){ 
+                
 				$motif{$prev_name}->[0] = {(A=>$info[$A], T=>$info[$T], C=>$info[$C], G=>$info[$G])};
 			}else{
 				$temp = $motif{$prev_name};
@@ -328,8 +333,8 @@ EOF
 	}
 	close MOTIF;
 
-
-	$input_file_new = `intersectBed -a $bound_motif -b $input_file -wo | sort -k 1,1 -k 2,2n |uniq | awk '{OFS="\t"}{print \$8,\$9,\$10,\$11,\$12,\$1,\$2,\$3,\$4,\$5,\$6,\$7}'`;
+    ###
+	$input_file_new = `intersectBed -a $bound_motif -b $input_file -wo | sort -k 1,1 -k 2,2n |uniq | awk '{OFS="\t"}{print \$8,\$9,\$10,\$11,\$12,\$1,\$2,\$3,\$4,\$5,\$6,\$7}'`; ###
 	if ($mode == 2){
 		my @line = split /\n+/, `printf "$input_file_new" | awk '{FS="\t";OFS="\t"}{gsub("chr","",\$1); print \$1,\$2,\$3}' | fastaFromBed -fi $ancestral_file -bed stdin -fo stdout`;
 		foreach my $line (@line){
@@ -346,14 +351,15 @@ EOF
 	foreach my $input_line (split /\n+/,$input_file_new){
 		chomp $input_line;
 		@info = split /\t+/,$input_line;
-		$ref = uc($info[3]); $alt = uc($info[4]);
-		$id = join("\t",$info[0],$info[1]);
-			
-		if($mode == 1){
+		$ref = uc($info[3]); $alt = uc($info[4]);   
+		$id_short = join("\t",$info[0],$info[1]);####SKL
+        $id = join("\t",@info[0,1,3,4]);###SKL
+
+		if($mode == 1){ ###mode 1: somatic; 2: germline and personal genome
 			$AA = $ref;
 			$der_al = $alt;
 		}else{
-			$AA = uc($ancestral{$id});			
+			$AA = uc($ancestral{$id_short});		###SKL	
 			if($AA eq $ref){
 				$der_al = $alt;
 			}elsif($AA eq $alt){
@@ -662,14 +668,18 @@ sub sensitive{
 	
 	open(IN, "intersectBed -u -a  $input -b $sensitive |");
 	while(<IN>){
-		$id = join("\t",(split /\t+/,$_)[0,1]);
+        $id = join("\t",(split /\t+/,$_)[0,1,3,4]);	###SKL add	
+
+		#$id = join("\t",(split /\t+/,$_)[0,1]);
 		$self->{SEN}->{$id} =1;			
 	}
 	close IN;
 	
 	open(IN, "grep 'Ultra' $sensitive| intersectBed -u -a  $input -b stdin |");
 	while(<IN>){
-		$id = join("\t",(split /\t+/,$_)[0,1]);
+        $id = join("\t",(split /\t+/,$_)[0,1,3,4]);	###SKL add	
+
+		#$id = join("\t",(split /\t+/,$_)[0,1]);
 		$self -> {USEN}->{$id}=1;
 	}
 	close IN;
@@ -682,7 +692,8 @@ sub read_encode{
 	open(IN,"intersectBed -a $out_nc -b $encode_annotation -wo | ");
 	while(<IN>){
 		my @tmp = split /\t+/,$_;
-		my $id = join("\t",@tmp[0,1]);
+        my $id = join("\t",@tmp[0,1,3,4]);###SKL add
+		###my $id = join("\t",@tmp[0,1]);
 		my $interval = join("",$tmp[5],":",$tmp[6],"-",$tmp[7]);			
 		my $tag = "";
 		my @anno = split /\./,$tmp[8];
@@ -711,7 +722,8 @@ sub user_annotation{
 			open(IN,"intersectBed -a $snv_input -b $file -wo | ");
 			while(<IN>){
 				my @tmp = split /\t+/,$_;
-				my $id = join("\t",@tmp[0,1]);
+				#my $id = join("\t",@tmp[0,1]);
+                my $id = join("\t",@tmp[0,1,3,4]); ###SKL
 				my $interval = join("",$tmp[5],":",$tmp[6],"-",$tmp[7]);			
 				my $tag;
 				if(scalar @tmp > 9){			
@@ -771,7 +783,8 @@ sub gene_link{
 		my ($cate,$tag) = @_;
 		foreach my $line(@$cate){
 			my @tmp = split /\s+/,$line;
-			my $id = join("\t",@tmp[0,1]);
+            my $id = join("\t",@tmp[0,1,3,4]); ###SKL
+			#my $id = join("\t",@tmp[0,1]);
 			my $gene = $tmp[8];
 			
 			if (defined $self -> {GENE}->{$id}->{$gene}->{"Promoter"}){
@@ -864,12 +877,15 @@ sub coding{
 
 
 		if(scalar @vat_out ==0){
-			@nvat_out = split /\n/, `intersectBed -a $snp_input -b $cds -wo | cut -f 1,3,9 | sort |uniq`;
+			@nvat_out = split /\n/, `intersectBed -a $snp_input -b $cds -wo | cut -f 1,3,4,5,9 | sort |uniq`;
 			open(O,">$out")||die;
 			foreach $nvat_out (@nvat_out){
 				@tmp = split /\s+/,$nvat_out;
-				print O $tmp[0],"\t",$tmp[1],"\t",".\t",$tmp[2],"\t";
-				$gene = $tmp[2];
+				#print O $tmp[0],"\t",$tmp[1],"\t",".\t",$tmp[2],"\t";
+				#$gene = $tmp[2];
+                print O join("\t",@tmp[0..3],'.',$tmp[4]),"\t";
+				$gene = $tmp[4];
+                
 				if (defined $hub{$gene}){
 					print O join('&',sort keys %{$hub{$gene}}),"\t";
 				}else{
@@ -889,7 +905,9 @@ sub coding{
 			foreach $vat_out(@vat_out){
 				if ($vat_out !~ /^#/){
 					@tmp =split /\s+/,$vat_out;
-					print O $tmp[0],"\t",$tmp[1],"\t",$tmp[7],"\t";
+					#print O $tmp[0],"\t",$tmp[1],"\t",$tmp[7],"\t";
+                    print O join("\t", @tmp[0,1,3,4,7]),"\t";
+                    
 					my $info = (split /,/,$tmp[7])[0];
 					if ($info =~ /VA=\d+:(.*?):/){
 						$gene =$1;
@@ -1031,8 +1049,9 @@ exit;
  	sub read_nc{
 		my ($file) = @_;
 		open(IN,$file);
-		while(<IN>){	
-			my $id = join("\t",(split /\s+/,$_)[0,1]);
+		while(<IN>){
+            my $id = join("\t",(split /\s+/,$_)[0,1,3,4]);###SKL
+			#my $id = join("\t",(split /\s+/,$_)[0,1]);
 			$self ->{NC} ->{$id} =1;
 		}
 		close IN;
@@ -1045,7 +1064,8 @@ exit;
 		while(<IN>){
 			chomp $_;
 			my @tmp = split /\t+/,$_;
-			my $id = join("\t",$tmp[0],$tmp[1]-1);
+            my $id = join("\t",$tmp[0],$tmp[1]-1,@tmp[2,3]); ###SKL: check tmp[1]-1. results from vat: snpMapper, in vcf format the position is 1-based, so here need to pos-1.
+			#my $id = join("\t",$tmp[0],$tmp[1]-1);
 			my $vat = (split /;/,$tmp[2])[-1];
 			my $score = 0;
 			$self -> {VAT} ->{$id}= $vat;
@@ -1066,7 +1086,10 @@ exit;
 				if (defined $self ->{CONS} ->{$id}){
     				$score++;
     			}
-    			if ($self ->{GERP} -> {$id} ne "." && $self ->{GERP} ->{$id} > 2){
+                my $id_short = join("\t",(split /\t/,$id)[0,1]);###SKL add
+    			
+    			#if ($self ->{GERP} -> {$id} ne "." && $self ->{GERP} ->{$id} > 2){
+                if ($self ->{GERP} -> {$id_short} ne "." && $self ->{GERP} ->{$id_short} > 2){
     				$score++;    # gerp greater than 2
     			}
 			}
@@ -1083,7 +1106,8 @@ exit;
 		my $id;
 		my $return_v = &weight($weight_file);
 		my %weight = %{$return_v};
-		
+		my $id_short;
+        
 		foreach $id (keys %{$self -> {NC}}){
 			$score = 0;
 			if (defined $self->{ANNO}->{$id} && (defined $self -> {SEN}->{$id})!=1 && (defined $self -> {MOTIFBR}->{$id})!=1 && (defined $self -> {HOT}->{$id})!=1){
@@ -1103,12 +1127,14 @@ exit;
 			if (defined $self -> {HOT} -> {$id}){
     			$score += $weight{HOT};
 			}
+
+            $id_short = join("\t",(split /\t/,$id)[0,1]);###SKL add
 			
 			if (defined $self ->{CONS} ->{$id}){
     			$score += $weight{CONS};
-    		}elsif ($self ->{GERP} -> {$id} ne "."){
+    		}elsif ($self ->{GERP} -> {$id_short} ne "."){
 				my $tmp_score = $weight{GERP};
-				$tmp_score =~ s/value/$self->{GERP}->{$id}/;	
+				$tmp_score =~ s/value/$self->{GERP}->{$id_short}/;	###$score += $weight{GERP} * &fit($self->{GERP}->{$id_short},2); # use eval to estimate the formular
 				$score +=eval($tmp_score);
     		}
     		if (defined $self ->{GENE} -> {$id} && (defined $self ->{HUB} -> {$id}) != 1 && (defined $self ->{MOTIFG}->{$id}) !=1){
@@ -1125,7 +1151,7 @@ exit;
 					$tmp_score =~ s/value/$self->{G_PROB}->{$id}/;
 					$score +=eval($tmp_score);
 				}else{
-					$score += 0.99629183; 
+					$score += 0.99629183; ###TODO: why here is hard codes
 				}
 			}
 			
@@ -1150,7 +1176,8 @@ exit;
 			if (defined $self ->{CONS} ->{$id}){
     			$score ++;
     		}
-    		if ($self ->{GERP} -> {$id} ne "." && $self -> {GERP} -> {$id} > 2){
+            my $id_short = join("\t",(split /\t/,$id)[0,1]);###SKL add
+    		if ($self ->{GERP} -> {$id_short} ne "." && $self -> {GERP} -> {$id_short} > 2){
     			$score ++;
     		}
     		if (defined $self -> {HOT} -> {$id}){
@@ -1194,8 +1221,10 @@ exit;
 		my $id;
     	foreach $score (sort {$b<=>$a} keys %cds_score){
     		foreach $id (sort keys %{$cds_score{$score}}){
-    			print OUT $self -> {DES} -> {$id},"\t",$sample,"\t";
-    			print OUT $self -> {GERP} -> {$id},";";
+    			print OUT $self -> {DES} -> {$id},"\t",$sample,"\t";   
+    			my $id_short = join("\t", (split /\t/,$id)[0,1]); ###SKL
+               # print  "$id:$id_short\t",$self -> {DES} -> {$id},"\t",$sample,"\n"; ###todel
+    			print OUT $self -> {GERP} -> {$id_short},";";###SKL
     			print OUT "Yes;";
     			print OUT $self -> {VAT} ->{$id},";";
     			
@@ -1238,8 +1267,10 @@ exit;
     	foreach $score (sort {$b<=>$a} keys %nc_score){
     		foreach $id (sort keys %{$nc_score{$score}}){
     			print OUT $self -> {DES} ->{$id},"\t",$sample,"\t";
-    			print OUT $self -> {GERP} -> {$id},";";
+                my $id_short = join("\t", (split /\t/,$id)[0,1]);
+    			print OUT $self -> {GERP} -> {$id_short},";";
     			print OUT "No;.;";
+                #print  "nc-$id:$id_short\t",$self -> {DES} -> {$id},"\t",$sample,"\n"; ###todel
 
     			if (defined $self -> {HUB} -> {$id}){
     				print OUT join(",",sort keys %{$self -> {HUB} -> {$id}}),";";
@@ -1332,7 +1363,8 @@ exit;
     				print OUT $tmp[0],"\t",$tmp[2],"\t.\t",$tmp[3],"\t",$tmp[4],"\t",".\t.\t";
     			}
     			print OUT "SAMPLE=$sample;";
-    			print OUT "GERP=",$self -> {GERP}->{$id},";";
+                my $id_short = join("\t", (split /\t/,$id)[0,1]);
+    			print OUT "GERP=",$self -> {GERP}->{$id_short},";";
     			
     			print OUT "CDS=Yes",";";
     			print OUT $self -> {VAT} -> {$id},";";
@@ -1369,7 +1401,9 @@ exit;
     				print OUT $tmp[0],"\t",$tmp[2],"\t.\t",$tmp[3],"\t",$tmp[4],"\t",".\t.\t";
     			}
     			print OUT "SAMPLE=$sample;";
-    			print OUT "GERP=",$self -> {GERP}->{$id},";";
+                		
+    			my $id_short = join("\t", (split /\t/,$id)[0,1]);###SKL
+    			print OUT "GERP=",$self -> {GERP}->{$id_short},";"; ###SKL
     			
     			print OUT "CDS=No;";
     			if (defined $self -> {HUB} -> {$id}){

@@ -141,10 +141,10 @@ sub gene_link{
 	my %net_degree = ();
 	my %selection;
 	
-	my @pro =split /\n/, `intersectBed -a $input -b $promoter -wo | sort -k 1,1 -k 2,2n |uniq`;
-	my @dis = split /\n/, `intersectBed -a $input -b $distal -wo | sort -k 1,1 -k 2,2n |uniq`;
+	my @pro =split /\n/, `intersectBed -a $input -b $promoter -wo | sort -k 1,1 -k 2,2n |uniq`; ###
+	my @dis = split /\n/, `intersectBed -a $input -b $distal -wo | sort -k 1,1 -k 2,2n |uniq`; ##enhancer
 	my @intron = split /\n/, `intersectBed -a $input -b $intron -wo | sort -k 1,1 -k 2,2n |uniq`;
-	my @utr = split /\n/, `intersectBed -a $input -b $utr -wo | sort -k 1,1 -k 2,2n |uniq`;
+	my @utr = split /\n/, `intersectBed -a $input -b $utr -wo | sort -k 1,1 -k 2,2n |uniq`; ###utrl
 	my @cds = split /\n/, `intersectBed -a $input -b $cds -wo | sort -k 1,1 -k 2,2n |uniq`;
 	
 	
@@ -152,14 +152,14 @@ sub gene_link{
 	while(<A>){
 		chomp $_;
 		my $file = $_;
-		my $net = (split /\./, ((split /\//,$file)[-1]))[0];
+		my $net = (split /\./, ((split /\//,$file)[-1]))[0]; #PHOS,PPI,REG
 		open(NET,$file)||die;
 		while(<NET>){
 			if (!/GENE_NAME/){
 				my ($gene,$degree) = (split /\s+/,$_)[0,1];
-				$network{$gene}{$net} =$degree ;
+				$network{$gene}{$net} =$degree ; #
 				if(not exists $net_degree{$net}){
-					$net_degree{$net}[0] = $degree;
+					$net_degree{$net}[0] = $degree; 
 				}else{
 					push @{$net_degree{$net}},$degree; 
 				}
@@ -177,8 +177,6 @@ sub gene_link{
 		}
 	}
 	close IN;
-
-
 
 	&func(\@intron,"Intron");
 	&func(\@utr,"UTR");
@@ -199,7 +197,7 @@ sub gene_link{
 			if (defined $selection{$gene}){
 				$self ->{SELECTION} -> {$id} ->{$gene} =1;
 			}
-			
+			##define hub gene
 			if (defined $network{$gene}){
 				my @prob_gene = ();
 				foreach my $net (sort keys %{$network{$gene}}){
@@ -232,7 +230,7 @@ sub coding{
 	if($nc_mode==0){
 		
 		@vat_out = split /\n/, `awk '{FS="\t";OFS="\t"}BEGIN{print "##fileformat=VCFv4.0\\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO"}{print \$1,\$3,\$2,\$4,\$5,".","PASS","."}' $snp_input | indelMapper $file_interval $file_fasta`;
-		
+		#####output from vat
 		foreach $vat_out(@vat_out){
 			if ($vat_out !~ /^#/){
 				@tmp =split /\s+/,$vat_out;
@@ -291,15 +289,15 @@ sub motif_gain{
 	$|++;
 	
 		
-	# Read in PFM and transform it to PWM using 20 sequences. 
+	# Read in PFM and transform it to PWM using 20 sequences.
 
 	open MOTIF, "$pfm_file" or die;
 	while($line = <MOTIF>){
 		chomp($line);
 		if($line =~ /^>/){
-			$prev_name = (split/>|\s+/,$line)[1];
+			$prev_name = (split/>|\s+/,$line)[1]; #something like: SIX5_H1-hESC_encode-Myers_seq_hsa_r1:MDscan#1#Intergenic
 		}else{
-			@info = split/\s+/,$line;
+			@info = split/\s+/,$line; #G 0.000000 0.000000 1.000000 0.000000
 			if(not exists $motif{$prev_name}){
 				$motif{$prev_name}->[0] = {(A=>log(($info[$A]*20+0.25)/21)-log(0.25), T=>log(($info[$T]*20+0.25)/21)-log(0.25), C=>log(($info[$C]*20+0.25)/21)-log(0.25), G=>log(($info[$G]*20+0.25)/21)-log(0.25))};
 			}else{
@@ -316,7 +314,9 @@ sub motif_gain{
 	my %score;
 	my %score_upper;
 	
-	open SCORE,"$score_file";
+	open SCORE,"$score_file"; #CUX1_7	12.034	3.91155e-08
+                              #DBX1_1	10.7581	3.99887e-08
+                              #DBX2_1	11.5444	3.9814e-08
 	while(<SCORE>){
 		my ($prev_name,$cut_off,$p) = (split /\s+/,$_)[0..2];
 		if ($p < $p_cut){
@@ -331,7 +331,7 @@ sub motif_gain{
 	
 
 	
-	# retrieve + & - 29bp around the SNP & gain of motif calculation; 
+	# retrieve + & - 29bp around the SNP & gain of motif calculation;  if the snp appear in any promoter/distal regulatory region, extract sequence for motif analysis
 	
 	foreach $id(sort keys %{$self->{GENE}}){
 		my $switch = 0;
@@ -341,41 +341,41 @@ sub motif_gain{
 			}
 		}
 		if ($switch == 1){
-			@des = split /\t+/,$id;
+			@des = split /\t+/,$id; #chr\tstart\tend\tref\talt
 			push @id,$id;
 			$chr = $des[0];
-			$chr =~ s/chr//g;
+			$chr =~ s/chr//g; #without 'chr' prefix
 			$start = $des[1];
 			$end = $des[2];
-			$snp_file .= join("",$chr,"\t",$start-29,"\t",$end+29,"\n");
+			$snp_file .= join("",$chr,"\t",$start-29,"\t",$end+29,"\n");  ###snp region add to snp_file
 			push @ref,uc($des[3]);
 			push @alt,uc($des[4]);
 			push @start,$start;
 			push @end,$end;
-		}
+ 		}
 	}
-	
+
+    ###output snp regions(Temp) and extract sequences
 	open(O,">$out_tmp")||die;
 	print O $snp_file;
 	close O;
 
 	if (-s $out_tmp){
-
-	@des = split /\n/, `fastaFromBed -fi $reference_file -bed $out_tmp -fo stdout`;	
+	@des = split /\n/, `fastaFromBed -fi $reference_file -bed $out_tmp -fo stdout`;	##fasta format
 	
 	if (scalar @des >0){
-		for $i (0 .. (scalar @des/2)-1){
+		for $i (0 .. (scalar @des/2)-1){ #the number fasta sequences in 59bp
 			$ref = $ref[$i]; 
 			$alt = $alt[$i];
 			$alt =~ s/-//g;
 			$ref =~ s/-//g;
 
-			$id = $id[$i]; 
+			$id = $id[$i]; ##id for snp_id string
 			$start = $start[$i]; 
 			$end = $end[$i];
 			$extract_seq=uc($des[$i*2+1]);
 			$ref_seq = $extract_seq;
-			
+			##replace ref to alt base
 			substr($extract_seq,29,length($ref)) = $alt;
 			
 			#positive strand
@@ -397,7 +397,6 @@ sub motif_gain{
 }
 
 # sub-routine for the sequence scanning ... 
-	
 	sub seq_scan{
 		my ($seq,$refseq, $strand) = @_;
 		
@@ -405,7 +404,7 @@ sub motif_gain{
 		my @refseq = @{$refseq};
 		undef my %refpwm;
 		
-		
+		### motif for read from motif file
 		foreach $prev_name(sort keys %motif){
 			$motif_length = scalar @{$motif{$prev_name}};
 	
@@ -414,7 +413,7 @@ sub motif_gain{
 			}
 			
 			if (-e "pwm/$prev_name"){
-			}else{
+			}else{ ###SKL: why no use the direct format and no need to convert?
 				open(TMP,">pwm/$prev_name")||die;
 				$pwm = "";
 				for $i(0 .. $motif_length-2){
@@ -449,9 +448,11 @@ sub motif_gain{
 				
 				if (defined $score_upper{$prev_name} && $ref_pwm_score >= $score_upper{$prev_name}){
 						$refpwm{$prev_name}=1
-				}elsif(defined $score_lower{$prev_name} && $ref_pwm_score < $score_lower{$prev_name}){	
+				}elsif(defined $score_lower{$prev_name} && $ref_pwm_score < $score_lower{$prev_name}){	#do nothing because the score is lower the known tf pwm score. Question is that even the score is a little bit lower than tfscore, it might have chance to be a binding site. anyway, 
 				}else{	
-					$ref_p = (split /\s+/,`TFMpvalue-sc2pv -a 0.25 -c 0.25 -g 0.25 -t 0.25 -s $ref_pwm_score -m pwm/$prev_name -w`)[2];
+					$ref_p = (split /\s+/,`TFMpvalue-sc2pv -a 0.25 -c 0.25 -g 0.25 -t 0.25 -s $ref_pwm_score -m pwm/$prev_name -w`)[2]; ##how to get ref_pwm_score;
+
+                    
 					if ($ref_p < $p_cut){
 						$refpwm{$prev_name}=1;
 					}
@@ -462,8 +463,8 @@ sub motif_gain{
 		
 		foreach $prev_name(sort keys %motif){
 			if (defined $refpwm{$prev_name}){
-			
-			}else{
+			###reference no significant binding site
+			}else{### then check the motif gain
 			$motif_length = scalar @{$motif{$prev_name}};
 			
 	
@@ -476,9 +477,10 @@ sub motif_gain{
 					$alt_pwm_score += $motif{$prev_name}->[$j]->{$seq[$i+$j]};
 				}
 				
-				if (defined $score_upper{$prev_name} && $alt_pwm_score >= $score_upper{$prev_name}){
-						&out_print($prev_name,join('',@seq[$i..$i+$motif_length-1]), $motif_length,$alt_pwm_score,$strand,$id);	
-				}elsif(defined $score_lower{$prev_name} && $alt_pwm_score < $score_lower{$prev_name}){	
+				if (defined $score_upper{$prev_name} && $alt_pwm_score >= $score_upper{$prev_name}){ #SKL: motif gain
+                    &out_print($prev_name,join('',@seq[$i..$i+$motif_length-1]), $motif_length,$alt_pwm_score,$strand,$id);
+                    
+				}elsif(defined $score_lower{$prev_name} && $alt_pwm_score < $score_lower{$prev_name}){	###no need do anything
 				}else{	
 					$alt_p = (split /\s+/,`TFMpvalue-sc2pv -a 0.25 -c 0.25 -g 0.25 -t 0.25 -s $alt_pwm_score -m pwm/$prev_name -w`)[2];
 					if ($alt_p < $p_cut){

@@ -1,3 +1,4 @@
+
 FunSeq2
 =======
 
@@ -12,17 +13,22 @@ Scores for all possible noncoding SNVs can be downloaded from http://funseq2.ger
 
 This software is freely licensed under the Creative Commons license (Attribution-NonCommerical).The main aspects of this license are that: The work can be made available for non-commercial use Derivatives can be made of the work Derivatives do not have to be made available under the same terms that they were first used, and We should be cited.
 
-** Change logs 
+
+
+## Change logs 
 Latest version:
 
-
+- v2.1.4:
+.. Add the support for the function analysis of positions with multiple possible alleles
+.. Add the support to change the default name of config.txt.
+.. Fixed some minor bugs
 
 - v2.1.2:
-Changed the data context to add  Roadmap Epigenome enhancer and enhancer-gene linkage
-Fixed some minor bugs
+.. Changed the data context to add  Roadmap Epigenome enhancer and enhancer-gene linkage
+.. Fixed some minor bugs
 
 - v2.1.0:
-The original version (funseq2.1.0.tar.gz) was frozen.
+.. The original version (funseq2.1.0.tar.gz) was frozen.
 
 
 
