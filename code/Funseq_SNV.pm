@@ -340,7 +340,7 @@ EOF
 		foreach my $line (@line){
 			if ($line =~ />/){
 				($chr, $pos) = (split />|:|-/,$line)[1..2];
-				$id = join("","chr",$chr,"\t",$pos);
+				$id = join("","chr",$chr,"\t",$pos); ###short id:
 			}else{
 				chomp $line;
 				$ancestral{$id} =$line;
@@ -556,7 +556,7 @@ sub motif_gain{
 		@seq = @{$seq};
 		
 		foreach $prev_name(sort keys %motif){
-			print $prev_name,"\n";
+			#print $prev_name,"\n"; ##SKL comment
 
 			$motif_length = scalar @{$motif{$prev_name}};
 	
@@ -928,12 +928,14 @@ sub coding{
 			close O;
 			
 			if ((split /\s+/, `awk 'END{print FNR}' $snp_input`)[0] > scalar @vat_out){
-				@nvat_out = split /\n/, `awk '{OFS="\t"}{print \$1,\$2-1,\$2}' $out | intersectBed -a $snp_input -b stdin -v | intersectBed -a stdin -b $cds -wo | cut -f 1,3,9 | sort | uniq`;
+				@nvat_out = split /\n/, `awk '{OFS="\t"}{print \$1,\$2-1,\$2}' $out | intersectBed -a $snp_input -b stdin -v | intersectBed -a stdin -b $cds -wo | cut -f 1,3,4,5,9 | sort | uniq`; ###SKL cut -f 139=>13459
 				open(O,">>$out")||die;
 				foreach $nvat_out (@nvat_out){
 					@tmp = split /\s+/,$nvat_out;
-					print O $tmp[0],"\t",$tmp[1],"\t",".\t",$tmp[2],"\t";
-					$gene = $tmp[2];
+					#print O $tmp[0],"\t",$tmp[1],"\t",".\t",$tmp[2],"\t";
+                    print O join("\t",@tmp[0..3],'.', $tmp[4]),"\t"; ##SKL
+                    
+					$gene = $tmp[4];#SKL 2=>4
 					if (defined $hub{$gene}){
 						print O join('&',sort keys %{$hub{$gene}}),"\t";
 					}else{
@@ -1066,17 +1068,17 @@ exit;
 			my @tmp = split /\t+/,$_;
             my $id = join("\t",$tmp[0],$tmp[1]-1,@tmp[2,3]); ###SKL: check tmp[1]-1. results from vat: snpMapper, in vcf format the position is 1-based, so here need to pos-1.
 			#my $id = join("\t",$tmp[0],$tmp[1]-1);
-			my $vat = (split /;/,$tmp[2])[-1];
+			my $vat = (split /;/,$tmp[4])[-1]; ###SKL change tmp[2]=>tmp[4]
 			my $score = 0;
 			$self -> {VAT} ->{$id}= $vat;
-			$self ->{GENE} -> {$id} = $tmp[3];
+			$self ->{GENE} -> {$id} = $tmp[5];##SKL change tmp[3]=>tmp[5]
 			if (/nonsynonymous/ || /prematureStop/){
 				$score ++;
 				if (/prematureStop/){
 					$score ++;
 				}
 				if ($tmp[4] ne "."){
-					$self -> {HUB} ->{$id} = $tmp[4];
+					$self -> {HUB} ->{$id} = $tmp[6];###SKL:4->6
 					$score ++;
 				}
 				if (/NegativeSelection/){
@@ -1132,7 +1134,7 @@ exit;
 			
 			if (defined $self ->{CONS} ->{$id}){
     			$score += $weight{CONS};
-    		}elsif ($self ->{GERP} -> {$id_short} ne "."){
+    		}elsif ($self ->{GERP} -> {$id_short} ne "."){ ##SKL
 				my $tmp_score = $weight{GERP};
 				$tmp_score =~ s/value/$self->{GERP}->{$id_short}/;	###$score += $weight{GERP} * &fit($self->{GERP}->{$id_short},2); # use eval to estimate the formular
 				$score +=eval($tmp_score);
@@ -1325,6 +1327,9 @@ exit;
     				my $gene_info = "";
     				foreach my $gene (sort keys %{$self -> {GENE} -> {$id}}){
     					my $info = "$gene(".join("&",sort keys %{$self->{GENE}->{$id}->{$gene}}).")";
+                        if ($info=~/\d+dx_\d+rm/){
+                            print "$gene:".join("&",sort keys %{$self->{GENE}->{$id}->{$gene}})."===$id\n";
+                        }
     					
     					if (defined $gene_info{$gene}){
     						$info = $info.join("",sort keys %{$gene_info{$gene}});
@@ -1546,7 +1551,7 @@ EOF
 	if ($outformat =~ /bed/i){
 		while(<IN>){
 			@temp = split /\s+/,$_;
-			$id = join(":",@temp[0,2]);
+			$id = join(":",@temp[0,2]); 
 			$tag = $temp[5];
 			$saw_tag{$tag}=1;
 			$id_info->{$id}->{$tag} =1;
