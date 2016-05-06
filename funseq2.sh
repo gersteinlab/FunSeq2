@@ -23,7 +23,8 @@ sv_length_cut=20
 function usage 
 {
 	echo " 
-	FunSeq version 2.1.4
+	FunSeq version 2.1.6, upated May 06, 2016.
+    bugs fixed; Now support multiple alt alleles entry for the same locus.
 	* Usage : $0 -f file -maf MAF -m <1/2> -len length_cut -inf <bed/vcf> -outf <bed/vcf> -nc -o path -g file -exp file -cls file -exf <rpkm/raw> -p int -cancer cancer_type -s score -uw -ua user_annotations_directory -db
 
      The default config file is config.txt. You can also assign a new config file using command:
@@ -162,9 +163,11 @@ then
 	then
 		if [[ $expression != "" && $class != "" && $exp_format != "" && $gene_list != "" ]]
 		then
+            echo -e "perl code/funseq2.pl $user_input $maf $genome_mode $input_format $output_format $nc_mode $out_path $parallel $cancer_type $score_cut $weight_mode $user_anno $recurdb_use $sv_length_cut $gene_list $expression $class $exp_format"
 			perl code/funseq2.pl $user_input $maf $genome_mode $input_format $output_format $nc_mode $out_path $parallel $cancer_type $score_cut $weight_mode $user_anno $recurdb_use $sv_length_cut $gene_list $expression $class $exp_format	
 		elif [[ $expression != "" && $class != "" && $exp_format != "" && $gene_list == "" ]]
 		then
+            echo -e "perl code/funseq2.pl $user_input $maf $genome_mode $input_format $output_format $nc_mode $out_path $parallel $cancer_type $score_cut $weight_mode $user_anno $recurdb_use $sv_length_cut $expression $class $exp_format"
 			perl code/funseq2.pl $user_input $maf $genome_mode $input_format $output_format $nc_mode $out_path $parallel $cancer_type $score_cut $weight_mode $user_anno $recurdb_use $sv_length_cut $expression $class $exp_format
 		else	
 			echo "Please input both expression , class label and expression format data"
@@ -173,8 +176,10 @@ then
 	else
 		if [[ $gene_list != "" ]]
 	 	then
+            echo -e "perl code/funseq2.pl $user_input $maf $genome_mode $input_format $output_format $nc_mode $out_path $parallel $cancer_type $score_cut $weight_mode $user_anno $recurdb_use $sv_length_cut $gene_list"
 			perl code/funseq2.pl $user_input $maf $genome_mode $input_format $output_format $nc_mode $out_path $parallel $cancer_type $score_cut $weight_mode $user_anno $recurdb_use $sv_length_cut $gene_list
 		else
+            echo -e "perl code/funseq2.pl $user_input $maf $genome_mode $input_format $output_format $nc_mode $out_path $parallel $cancer_type $score_cut $weight_mode $user_anno $recurdb_use $sv_length_cut"
 			perl code/funseq2.pl $user_input $maf $genome_mode $input_format $output_format $nc_mode $out_path $parallel $cancer_type $score_cut $weight_mode $user_anno $recurdb_use $sv_length_cut
 		fi
 	fi

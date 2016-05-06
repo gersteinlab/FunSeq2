@@ -2,7 +2,7 @@ package Funseq_SNV;
 
 use 5.000;
 use strict;
-our $VERSION = '0.1';
+our $VERSION = '0.2';
 use List::Util qw[min max];
 
 =head1 NAME
@@ -224,7 +224,8 @@ sub gerp_score{
 	my $id;
 	
 	foreach $id (sort keys %{$self->{DES}}){
-		$self->{GERP}->{$id} = ".";###here id is chr pos ref alt
+        my $id_short = join("\t",(split /\t/,$id)[0,1]); ##SKL:
+		$self->{GERP}->{$id_short} = ".";###here id is chr pos ref alt
 	}
 	if (-s $gerp_file && -f $gerp_file){		
 		my $out = `awk '{FS="\t";OFS="\t"}{print \$1,\$2,\$2+1,\$1":"\$2}' $infile |sort -k 1,1 -k 2,2n |uniq| bigWigAverageOverBed $gerp_file stdin stdout`;
@@ -668,8 +669,9 @@ sub sensitive{
 	
 	open(IN, "intersectBed -u -a  $input -b $sensitive |");
 	while(<IN>){
+        $_=~s/\R//g; #chomp $_;
         $id = join("\t",(split /\t+/,$_)[0,1,3,4]);	###SKL add	
-
+        
 		#$id = join("\t",(split /\t+/,$_)[0,1]);
 		$self->{SEN}->{$id} =1;			
 	}
@@ -677,8 +679,9 @@ sub sensitive{
 	
 	open(IN, "grep 'Ultra' $sensitive| intersectBed -u -a  $input -b stdin |");
 	while(<IN>){
+        $_=~s/\R//g; #chomp $_;
         $id = join("\t",(split /\t+/,$_)[0,1,3,4]);	###SKL add	
-
+        
 		#$id = join("\t",(split /\t+/,$_)[0,1]);
 		$self -> {USEN}->{$id}=1;
 	}
@@ -828,7 +831,7 @@ sub coding{
 	
 	if($nc_mode==0){
 		
-		@vat_out = split /\n/, `awk '{FS="\t";OFS="\t"}BEGIN{print "##fileformat=VCFv4.0\\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO"}{print \$1,\$3,".",\$4,\$5,".","PASS","."}' $snp_input | snpMapper $file_interval $file_fasta`;
+		@vat_out = split /\n/, `awk '{FS="\t";OFS="\t"}BEGIN{print "##fileformat=VCFv4.0\\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO"}{print \$1,\$3,".",\$4,\$5,".","PASS","."}' $snp_input | snpMapper $file_interval $file_fasta |grep "^[^#]"`;
 		
 		# Read in networks
 		my %network;
@@ -1064,7 +1067,7 @@ exit;
 		my ($file) = @_;
 		open(IN,$file);
 		while(<IN>){
-			chomp $_;
+			$_=~s/\R//g; #chomp $_;
 			my @tmp = split /\t+/,$_;
             my $id = join("\t",$tmp[0],$tmp[1]-1,@tmp[2,3]); ###SKL: check tmp[1]-1. results from vat: snpMapper, in vcf format the position is 1-based, so here need to pos-1.
 			#my $id = join("\t",$tmp[0],$tmp[1]-1);
@@ -1077,7 +1080,7 @@ exit;
 				if (/prematureStop/){
 					$score ++;
 				}
-				if ($tmp[4] ne "."){
+				if ($tmp[6] ne "."){ ###SKL 4->6
 					$self -> {HUB} ->{$id} = $tmp[6];###SKL:4->6
 					$score ++;
 				}
@@ -1085,7 +1088,7 @@ exit;
 					$self -> {SELECTION} ->{$id} = 1;
 					$score ++;
 				}	
-				if (defined $self ->{CONS} ->{$id}){
+				if (defined $self ->{CONS} ->{$id}){  #chr1    909237  G       C
     				$score++;
     			}
                 my $id_short = join("\t",(split /\t/,$id)[0,1]);###SKL add
@@ -1306,7 +1309,7 @@ exit;
     			}else{
     				print OUT ".;";
     			}
-    		
+    		###some id shows wrong, then output YES
     			if (defined $self -> {SEN} -> {$id}){
     				print OUT "Yes;";
     			}else{
